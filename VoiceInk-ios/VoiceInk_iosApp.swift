@@ -12,14 +12,9 @@ import SwiftData
 struct VoiceInk_iosApp: App {
     @State private var hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
     @StateObject private var recordingManager = RecordingManager()
-    
-    init() {
-        // Clear any stale recording state on app launch
-        AppGroupCoordinator.shared.updateRecordingState(false)
-        print("🧹 Cleared stale recording state on app launch")
-    }
-    
-    var sharedModelContainer: ModelContainer = {
+    @StateObject private var httpServer: VoiceInkHTTPServer
+
+    static let sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Transcription.self,
         ])
@@ -33,11 +28,31 @@ struct VoiceInk_iosApp: App {
         }
     }()
 
+    init() {
+        // Clear any stale recording state on app launch
+        AppGroupCoordinator.shared.updateRecordingState(false)
+        print("🧹 Cleared stale recording state on app launch")
+
+        // Initialize HTTP server
+        let recordingMgr = RecordingManager()
+        _recordingManager = StateObject(wrappedValue: recordingMgr)
+        _httpServer = StateObject(wrappedValue: VoiceInkHTTPServer(
+            port: 8080,
+            recordingManager: recordingMgr,
+            modelContainer: Self.sharedModelContainer
+        ))
+    }
+
     var body: some Scene {
         WindowGroup {
             if hasCompletedOnboarding {
                 ContentView()
                     .environmentObject(recordingManager)
+                    .environmentObject(httpServer)
+                    .onAppear {
+                        httpServer.start()
+                        print("🌐 HTTP Server started for ESP32 integration")
+                    }
                     .onOpenURL { url in
                         handleURL(url)
                     }
@@ -48,7 +63,7 @@ struct VoiceInk_iosApp: App {
                     }
             }
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(Self.sharedModelContainer)
     }
     
     private func handleURL(_ url: URL) {

@@ -208,6 +208,36 @@ final class RecordingManager: ObservableObject {
         durationTimer = nil
     }
     
+    // MARK: - Uploaded Audio Processing
+    func processUploadedAudio(fileURL: URL, timestamp: Date, modelContext: ModelContext) async {
+        let audioFileName = fileURL.lastPathComponent
+
+        // Calculate duration from audio file
+        let duration = getAudioDuration(fileURL: fileURL)
+
+        // Create transcription note with pending status
+        let note = Transcription(
+            text: "",
+            duration: duration,
+            audioFileURL: audioFileName,
+            transcriptionStatus: .pending
+        )
+        note.timestamp = timestamp
+
+        modelContext.insert(note)
+        try? modelContext.save()
+
+        print("✅ Created transcription for uploaded audio: \(audioFileName)")
+
+        // Start background transcription
+        transcribeInBackground(note: note, audioFileName: audioFileName, recordingDuration: duration, modelContext: modelContext)
+    }
+
+    private func getAudioDuration(fileURL: URL) -> Double {
+        let asset = AVURLAsset(url: fileURL)
+        return CMTimeGetSeconds(asset.duration)
+    }
+
     // MARK: - Transcription
     private func transcribeInBackground(note: Transcription, audioFileName: String, recordingDuration: Double, modelContext: ModelContext) {
         Task {

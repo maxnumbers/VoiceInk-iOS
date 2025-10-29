@@ -22,5 +22,11 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>VoiceInk needs local network access to receive audio recordings from your ESP32 device.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_voiceink._tcp</string>
+	</array>
 </dict>
 </plist>
